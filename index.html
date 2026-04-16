@@ -1,0 +1,1229 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0,viewport-fit=cover"/>
+<title>Pikmin 工具</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<style>
+:root{
+  --bg:#f2f2f7;--card:#fff;--fill:rgba(120,120,128,.12);--fill2:rgba(120,120,128,.06);
+  --sep:rgba(60,60,67,.15);--blue:#007aff;--green:#34c759;--red:#ff3b30;
+  --orange:#ff9500;--purple:#af52de;
+  --label:#1c1c1e;--label2:#3c3c43;--label3:#6c6c70;--label4:#8e8e93;
+  --r-sm:10px;--r-md:14px;--r-lg:20px;--r-xl:28px;
+  --sh:0 1px 3px rgba(0,0,0,.08),0 4px 16px rgba(0,0,0,.06);
+  --sh-lg:0 4px 24px rgba(0,0,0,.14);
+  --tab-h:60px;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{background:var(--bg);color:var(--label);font-family:-apple-system,BlinkMacSystemFont,"SF Pro Display","Helvetica Neue","Segoe UI",sans-serif;-webkit-font-smoothing:antialiased;min-height:100vh;overflow-x:clip;}
+
+/* ── 登入 ── */
+#login-screen{position:fixed;inset:0;z-index:200;background:var(--bg);display:flex;align-items:center;justify-content:center;padding:24px;}
+.login-card{background:var(--card);border-radius:var(--r-xl);padding:40px 32px 32px;width:100%;max-width:360px;box-shadow:var(--sh-lg);}
+.login-logo{width:72px;height:72px;background:linear-gradient(145deg,#4ade80,#22c55e);border-radius:20px;margin:0 auto 20px;display:flex;align-items:center;justify-content:center;font-size:36px;box-shadow:0 4px 16px rgba(34,197,94,.35);}
+.login-title{text-align:center;font-size:26px;font-weight:700;margin-bottom:4px;}
+.login-sub{text-align:center;font-size:14px;color:var(--label4);margin-bottom:28px;}
+.input-group{background:var(--fill);border-radius:var(--r-sm);overflow:hidden;margin-bottom:12px;}
+.input-group input{display:block;width:100%;background:transparent;border:none;outline:none;padding:13px 16px;font-size:16px;color:var(--label);font-family:inherit;}
+.input-group input::placeholder{color:var(--label4);}
+.input-group input+input{border-top:1px solid var(--sep);}
+.input-group.shake{animation:shake .35s ease;}
+@keyframes shake{0%,100%{transform:translateX(0)}20%{transform:translateX(-8px)}60%{transform:translateX(8px)}80%{transform:translateX(-4px)}}
+.login-btn{width:100%;padding:14px;background:var(--blue);color:#fff;border:none;border-radius:var(--r-sm);font-size:16px;font-weight:600;font-family:inherit;cursor:pointer;margin-top:4px;transition:opacity .15s;}
+.login-btn:active{opacity:.8;}
+.login-error{color:var(--red);font-size:13px;text-align:center;min-height:18px;margin-top:10px;}
+
+/* ── 主應用 ── */
+#main-app{display:none;}
+
+/* ── 頂部導覽 ── */
+.navbar{position:sticky;top:0;z-index:100;background:rgba(242,242,247,.92);backdrop-filter:saturate(180%) blur(20px);border-bottom:1px solid var(--sep);}
+.navbar-inner{max-width:1400px;margin:0 auto;padding:0 max(16px,env(safe-area-inset-left,16px));display:flex;align-items:center;gap:10px;height:52px;}
+.nav-title{font-size:17px;font-weight:600;display:flex;align-items:center;gap:7px;flex-shrink:0;}
+.nav-dot{width:8px;height:8px;background:var(--green);border-radius:50%;}
+.nav-user{font-size:13px;color:var(--label4);background:var(--fill);padding:4px 10px;border-radius:20px;flex-shrink:0;}
+.nav-spacer{flex:1;}
+.save-btn{display:flex;align-items:center;gap:6px;padding:7px 14px;background:var(--green);color:#fff;border:none;border-radius:20px;font-size:14px;font-weight:600;font-family:inherit;cursor:pointer;transition:opacity .15s;flex-shrink:0;}
+.save-btn:active{opacity:.8;}
+.save-btn:disabled{background:var(--label4);opacity:.6;cursor:default;}
+.save-badge-n{background:rgba(255,255,255,.3);border-radius:10px;padding:1px 6px;font-size:12px;font-weight:700;}
+.icon-btn{width:34px;height:34px;background:var(--fill);border:none;border-radius:50%;display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:16px;flex-shrink:0;transition:background .15s;}
+.icon-btn:hover{background:rgba(120,120,128,.2);}
+.logout-btn{padding:6px 12px;background:var(--fill);border:none;border-radius:20px;font-size:13px;color:var(--label3);font-family:inherit;cursor:pointer;transition:background .15s;flex-shrink:0;}
+.logout-btn:hover{background:rgba(255,59,48,.1);color:var(--red);}
+
+/* ── 篩選區 ── */
+.filters-wrap{background:rgba(242,242,247,.92);backdrop-filter:saturate(180%) blur(20px);border-bottom:1px solid var(--sep);position:sticky;top:52px;z-index:90;}
+.filters-inner{max-width:1400px;margin:0 auto;padding:10px max(20px,env(safe-area-inset-left,20px)) 12px;display:flex;flex-direction:column;gap:10px;}
+.search-wrap{position:relative;}
+.search-icon{position:absolute;left:11px;top:50%;transform:translateY(-50%);color:var(--label4);font-size:15px;pointer-events:none;}
+.search-input{width:100%;background:var(--fill);border:none;outline:none;border-radius:var(--r-sm);padding:9px 12px 9px 34px;font-size:15px;color:var(--label);font-family:inherit;}
+.search-input:focus{background:rgba(120,120,128,.18);}
+.search-input::placeholder{color:var(--label4);}
+.filter-row{display:flex;align-items:center;gap:8px;overflow-x:auto;scrollbar-width:none;padding-bottom:2px;}
+.filter-row::-webkit-scrollbar{display:none;}
+.filter-label{font-size:12px;font-weight:600;color:var(--label4);text-transform:uppercase;letter-spacing:.05em;white-space:nowrap;flex-shrink:0;}
+.seg-ctrl{display:flex;background:var(--fill);border-radius:8px;padding:2px;gap:2px;flex-shrink:0;}
+.seg-btn{padding:5px 12px;background:transparent;border:none;border-radius:6px;font-size:13px;font-weight:500;color:var(--label3);cursor:pointer;white-space:nowrap;font-family:inherit;transition:background .15s,color .15s;}
+.seg-btn.active{background:var(--card);color:var(--label);font-weight:600;box-shadow:0 1px 4px rgba(0,0,0,.12);}
+.chip{display:flex;align-items:center;gap:5px;padding:5px 11px;background:var(--fill);border:none;border-radius:20px;font-size:13px;font-weight:500;color:var(--label3);cursor:pointer;white-space:nowrap;font-family:inherit;transition:background .15s,color .15s;flex-shrink:0;}
+.chip.active{font-weight:600;}
+.chip-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;}
+
+/* ── 進度 ── */
+.progress-section{max-width:1400px;margin:0 auto;padding:14px 16px 0;}
+.progress-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;}
+.progress-label{font-size:13px;font-weight:500;color:var(--label3);}
+.progress-nums{font-size:13px;font-weight:600;color:var(--label2);}
+.progress-nums .hl{color:var(--green);}
+.pbar-bg{height:5px;background:var(--fill);border-radius:999px;overflow:hidden;}
+.pbar-fill{height:100%;background:linear-gradient(90deg,#34c759,#30d158);border-radius:999px;transition:width .5s cubic-bezier(.4,0,.2,1);}
+
+/* ── Tab 系統 ── */
+.tab-pane{display:none;}
+.tab-pane.active{display:block;}
+.tab-bar{position:fixed;bottom:0;left:0;right:0;height:var(--tab-h);background:rgba(255,255,255,.94);backdrop-filter:saturate(180%) blur(20px);border-top:1px solid var(--sep);display:flex;z-index:100;padding-bottom:env(safe-area-inset-bottom,0);}
+.tab-btn{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;background:none;border:none;cursor:pointer;color:var(--label4);font-size:10px;font-weight:500;font-family:inherit;transition:color .15s;}
+.tab-btn.active{color:var(--blue);}
+.tab-icon{font-size:22px;line-height:1;}
+
+/* ── 主內容 ── */
+.content{max-width:1400px;margin:0 auto;padding:16px max(20px,env(safe-area-inset-left,20px)) calc(var(--tab-h)+20px);}
+
+/* ── 載入 ── */
+#loading{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:50vh;gap:12px;}
+.spinner{width:36px;height:36px;border:3px solid var(--fill);border-top-color:var(--blue);border-radius:50%;animation:spin .7s linear infinite;}
+@keyframes spin{to{transform:rotate(360deg)}}
+.loading-text{font-size:15px;color:var(--label4);}
+
+/* ── 待辦清單 ── */
+.todo-panel{background:var(--card);border-radius:var(--r-lg);box-shadow:var(--sh);margin-bottom:16px;overflow:hidden;}
+.todo-hd{display:flex;align-items:center;justify-content:space-between;padding:12px 16px;border-bottom:1px solid var(--sep);}
+.todo-title{font-size:15px;font-weight:700;display:flex;align-items:center;gap:7px;}
+.todo-icon{width:22px;height:22px;background:linear-gradient(135deg,#ff9500,#e67600);border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:12px;}
+.todo-sub{font-size:12px;color:var(--label4);}
+.todo-toggle{font-size:12px;color:var(--blue);background:none;border:none;cursor:pointer;padding:0;font-family:inherit;margin-left:8px;}
+.todo-list{padding:4px 0;}
+.todo-item{display:flex;align-items:center;gap:10px;padding:8px 16px;transition:background .15s;}
+.todo-item:hover{background:var(--fill2);}
+.todo-rank{width:22px;height:22px;border-radius:50%;background:var(--fill);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:var(--label4);flex-shrink:0;}
+.todo-rank.r1{background:#fef9c3;color:#854d0e;}
+.todo-rank.r2{background:#f1f5f9;color:#475569;}
+.todo-rank.r3{background:#fef2e8;color:#9a3412;}
+.todo-info{flex:1;min-width:0;}
+.todo-name{font-size:14px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.todo-meta{font-size:11px;color:var(--label4);margin-top:1px;}
+.todo-bar-wrap{flex-shrink:0;width:72px;}
+.todo-bar-bg{height:4px;background:var(--fill);border-radius:999px;overflow:hidden;margin-bottom:3px;}
+.todo-bar-fill{height:100%;border-radius:999px;transition:width .4s ease;}
+.bar-hi{background:var(--green);}.bar-md{background:var(--orange);}.bar-lo{background:var(--blue);}
+.todo-pct{font-size:11px;font-weight:700;text-align:right;}
+.pct-hi{color:#248a3d;}.pct-md{color:#b45309;}.pct-lo{color:var(--blue);}
+.todo-missing{flex-shrink:0;background:#fff7ed;border:1px solid #fed7aa;border-radius:20px;padding:3px 9px;font-size:12px;font-weight:700;color:#c2410c;white-space:nowrap;}
+.todo-empty{padding:18px 16px;text-align:center;font-size:13px;color:var(--label4);}
+
+/* ── 展開/縮合控制列 ── */
+.cat-controls{display:flex;align-items:center;justify-content:flex-end;gap:8px;margin-bottom:12px;}
+.cat-ctrl-btn{padding:5px 12px;background:var(--fill);border:none;border-radius:20px;font-size:13px;font-weight:500;color:var(--label3);font-family:inherit;cursor:pointer;transition:background .15s;}
+.cat-ctrl-btn:hover{background:rgba(120,120,128,.2);}
+
+/* ── 圖鑑分類 ── */
+.cat-section{margin-bottom:24px;}
+.cat-hd{display:flex;align-items:center;gap:8px;padding:0 4px;margin-bottom:10px;cursor:pointer;user-select:none;-webkit-tap-highlight-color:transparent;}
+.cat-hd:hover .cat-toggle-icon{color:var(--label2);}
+.cat-toggle-icon{font-size:13px;color:var(--label4);flex-shrink:0;transition:transform .2s;width:16px;text-align:center;}
+.cat-toggle-icon.collapsed{transform:rotate(-90deg);}
+.cat-name{font-size:20px;font-weight:700;}
+.cat-en{font-size:13px;color:var(--label4);}
+.cat-badge{font-size:11px;font-weight:600;padding:2px 7px;border-radius:6px;letter-spacing:.04em;flex-shrink:0;}
+.cat-badge.regular{background:rgba(52,199,89,.1);color:#248a3d;}
+.cat-badge.special{background:rgba(175,82,222,.12);color:var(--purple);}
+.cat-spacer{flex:1;}
+.cat-pbar{width:60px;height:3px;background:var(--fill);border-radius:999px;overflow:hidden;flex-shrink:0;}
+.cat-pbar-fill{height:100%;background:var(--green);border-radius:999px;transition:width .3s ease;}
+.cat-hd.special .cat-pbar-fill{background:var(--purple);}
+.cat-prog{font-size:13px;font-weight:500;color:var(--label4);white-space:nowrap;flex-shrink:0;}
+.cat-prog b{color:var(--label2);font-weight:600;}
+.cat-body{overflow:hidden;transition:max-height .3s cubic-bezier(.4,0,.2,1);}
+
+/* ── 圖鑑格子 ── */
+.items-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(76px,1fr));gap:8px;padding-bottom:4px;}
+@media(min-width:600px){.items-grid{grid-template-columns:repeat(auto-fill,minmax(86px,1fr));}}
+@media(min-width:900px){.items-grid{grid-template-columns:repeat(auto-fill,minmax(92px,1fr));gap:10px;}}
+@media(min-width:1200px){.items-grid{grid-template-columns:repeat(auto-fill,minmax(96px,1fr));gap:12px;}}
+
+/* ── 圖鑑卡片 ── */
+.item-card{position:relative;background:var(--card);border-radius:var(--r-md);cursor:pointer;aspect-ratio:1;display:flex;align-items:center;justify-content:center;padding:6px;box-shadow:var(--sh);transition:transform .15s cubic-bezier(.4,0,.2,1),box-shadow .15s,background .15s;overflow:visible;user-select:none;-webkit-tap-highlight-color:transparent;}
+.item-card:hover{transform:translateY(-2px) scale(1.03);box-shadow:0 6px 24px rgba(0,0,0,.12);}
+.item-card:active{transform:scale(.95);}
+.item-card.collected{background:#f0fdf4;}
+.item-card.collected::after{content:'';position:absolute;inset:0;border-radius:var(--r-md);border:1.5px solid rgba(52,199,89,.45);pointer-events:none;}
+.item-img{width:100%;height:100%;object-fit:contain;border-radius:6px;transition:filter .2s;}
+.item-card:not(.collected) .item-img{filter:grayscale(.25) brightness(.92);}
+.check-badge{position:absolute;top:5px;right:5px;width:17px;height:17px;background:var(--green);border-radius:50%;display:none;align-items:center;justify-content:center;font-size:10px;color:#fff;font-weight:800;box-shadow:0 1px 4px rgba(52,199,89,.5);}
+.item-card.collected .check-badge{display:flex;}
+.rare-badge{position:absolute;top:5px;left:5px;width:15px;height:15px;background:var(--orange);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:8px;color:#fff;font-weight:800;}
+.pikmin-dot{position:absolute;bottom:4px;left:50%;transform:translateX(-50%);width:7px;height:7px;border-radius:50%;border:1.5px solid rgba(255,255,255,.9);box-shadow:0 1px 2px rgba(0,0,0,.15);}
+.item-card:hover::before{content:attr(data-label);position:absolute;bottom:calc(100%+7px);left:50%;transform:translateX(-50%);background:rgba(28,28,30,.88);backdrop-filter:blur(8px);border-radius:7px;padding:4px 8px;font-size:11px;color:#fff;white-space:nowrap;pointer-events:none;z-index:999;box-shadow:0 2px 8px rgba(0,0,0,.2);}
+
+/* ── 無結果 ── */
+.no-results{text-align:center;padding:60px 20px;color:var(--label4);}
+.no-results .nr-icon{font-size:48px;margin-bottom:12px;}
+.no-results .nr-text{font-size:17px;font-weight:500;color:var(--label3);}
+.no-results .nr-sub{font-size:14px;margin-top:6px;}
+
+/* ═══ 計時器 ═══ */
+.timer-content{max-width:600px;margin:0 auto;padding:16px max(20px,env(safe-area-inset-left,20px)) calc(var(--tab-h)+20px);}
+.timer-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;}
+.timer-page-title{font-size:22px;font-weight:700;}
+.add-timer-btn{display:flex;align-items:center;gap:6px;padding:8px 16px;background:var(--blue);color:#fff;border:none;border-radius:20px;font-size:14px;font-weight:600;font-family:inherit;cursor:pointer;transition:opacity .15s;}
+.add-timer-btn:active{opacity:.8;}
+.timer-empty{text-align:center;padding:60px 20px;color:var(--label4);}
+.timer-empty .te-icon{font-size:52px;margin-bottom:12px;}
+.timer-empty .te-title{font-size:17px;font-weight:600;color:var(--label3);margin-bottom:6px;}
+
+/* 計時器卡片 */
+.timer-card{background:var(--card);border-radius:var(--r-lg);padding:16px;box-shadow:var(--sh);margin-bottom:12px;display:flex;align-items:center;gap:14px;transition:box-shadow .2s;}
+.timer-card.done{background:#fff8f0;box-shadow:0 0 0 2px var(--orange),var(--sh);}
+.timer-ring{position:relative;width:56px;height:56px;flex-shrink:0;}
+.timer-ring svg{transform:rotate(-90deg);}
+.ring-bg{fill:none;stroke:var(--fill);stroke-width:4;}
+.ring-fg{fill:none;stroke-width:4;stroke-linecap:round;transition:stroke-dashoffset .9s linear,stroke .5s;}
+.ring-label{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;color:var(--label3);text-align:center;line-height:1.2;}
+.timer-info{flex:1;min-width:0;}
+.timer-name{font-size:15px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.timer-cd{font-size:26px;font-weight:700;letter-spacing:-.5px;font-variant-numeric:tabular-nums;margin-top:2px;}
+.timer-cd.green{color:var(--green);}.timer-cd.orange{color:var(--orange);}.timer-cd.red{color:var(--red);}.timer-cd.done-c{color:var(--orange);}
+.timer-end{font-size:11px;color:var(--label4);margin-top:2px;}
+.timer-del{width:30px;height:30px;background:rgba(255,59,48,.08);border:none;border-radius:50%;display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:14px;flex-shrink:0;transition:background .15s;}
+.timer-del:hover{background:rgba(255,59,48,.18);}
+
+/* ═══ Modal 系統 ═══ */
+.modal-overlay{position:fixed;inset:0;z-index:300;background:rgba(0,0,0,.45);backdrop-filter:blur(4px);display:none;align-items:flex-end;justify-content:center;}
+.modal-overlay.open{display:flex;}
+.modal-sheet{background:var(--card);border-radius:var(--r-xl) var(--r-xl) 0 0;width:100%;max-width:500px;padding-bottom:env(safe-area-inset-bottom,0);box-shadow:0 -4px 32px rgba(0,0,0,.16);}
+/* 只在 .open 時才播放進場動畫 */
+.modal-overlay.open .modal-sheet{animation:slide-up .28s cubic-bezier(.4,0,.2,1);}
+@keyframes slide-up{from{transform:translateY(100%)}to{transform:translateY(0)}}
+.modal-handle{width:36px;height:4px;background:var(--fill);border-radius:2px;margin:10px auto 0;}
+.modal-title{font-size:17px;font-weight:700;padding:14px 20px 12px;border-bottom:1px solid var(--sep);}
+.modal-body{padding:16px 20px;}
+.modal-foot{padding:10px 20px 20px;display:flex;gap:10px;}
+.modal-foot .btn{flex:1;padding:13px;border:none;border-radius:var(--r-sm);font-size:16px;font-weight:600;font-family:inherit;cursor:pointer;transition:opacity .15s;}
+.modal-foot .btn:active{opacity:.8;}
+.btn-cancel{background:var(--fill);color:var(--label3);}
+.btn-confirm{background:var(--blue);color:#fff;}
+.btn-danger{background:var(--red);color:#fff;}
+.form-field{margin-bottom:14px;}
+.form-label{font-size:13px;font-weight:600;color:var(--label3);margin-bottom:6px;}
+.form-input{width:100%;background:var(--fill);border:none;outline:none;border-radius:var(--r-sm);padding:11px 14px;font-size:16px;color:var(--label);font-family:inherit;}
+.form-input:focus{background:rgba(120,120,128,.18);}
+.time-row{display:flex;align-items:center;gap:8px;}
+.time-input{background:var(--fill);border:none;outline:none;border-radius:var(--r-sm);padding:11px 14px;font-size:20px;font-weight:600;color:var(--label);font-family:inherit;width:80px;text-align:center;}
+.time-input:focus{background:rgba(120,120,128,.18);}
+.time-sep{font-size:22px;font-weight:700;color:var(--label3);}
+.time-unit{font-size:14px;color:var(--label4);}
+.quick-btns{display:flex;gap:6px;flex-wrap:wrap;margin-top:10px;}
+.q-btn{padding:6px 12px;background:rgba(0,122,255,.1);color:var(--blue);border:none;border-radius:20px;font-size:13px;font-weight:600;font-family:inherit;cursor:pointer;transition:background .15s;}
+.q-btn:hover{background:rgba(0,122,255,.18);}
+
+/* 設定 */
+.setting-row{display:flex;align-items:center;justify-content:space-between;padding:14px 0;border-bottom:1px solid var(--sep);}
+.setting-row:last-child{border-bottom:none;}
+.setting-label{font-size:16px;font-weight:500;}
+.setting-sub{font-size:13px;color:var(--label4);margin-top:2px;}
+.ios-toggle{position:relative;width:51px;height:31px;flex-shrink:0;}
+.ios-toggle input{opacity:0;width:0;height:0;}
+.ios-slider{position:absolute;inset:0;background:#e5e5ea;border-radius:999px;cursor:pointer;transition:background .3s;}
+.ios-slider::before{content:'';position:absolute;left:2px;top:2px;width:27px;height:27px;background:#fff;border-radius:50%;transition:transform .3s;box-shadow:0 2px 4px rgba(0,0,0,.2);}
+.ios-toggle input:checked+.ios-slider{background:var(--green);}
+.ios-toggle input:checked+.ios-slider::before{transform:translateX(20px);}
+
+/* ── Toast ── */
+#toast{
+  position:fixed;bottom:calc(var(--tab-h)+14px);left:50%;
+  transform:translateX(-50%) translateY(0);
+  opacity:0;pointer-events:none;
+  background:rgba(28,28,30,.92);backdrop-filter:blur(16px);
+  border-radius:var(--r-sm);padding:10px 18px;
+  font-size:14px;font-weight:500;color:#fff;
+  z-index:500;white-space:nowrap;
+  box-shadow:0 4px 20px rgba(0,0,0,.25);
+  transition:opacity .25s,transform .25s;
+}
+#toast.show{opacity:1;transform:translateX(-50%) translateY(-8px);}
+#toast.green{background:rgba(52,199,89,.94);}
+#toast.red{background:rgba(255,59,48,.94);}
+
+/* ── 回到頂部 ── */
+#scroll-top{
+  position:fixed;bottom:calc(var(--tab-h)+14px);right:18px;
+  width:44px;height:44px;
+  background:rgba(255,255,255,.94);backdrop-filter:blur(12px);
+  border:1px solid var(--sep);border-radius:50%;
+  display:flex;align-items:center;justify-content:center;
+  cursor:pointer;font-size:20px;color:var(--blue);
+  box-shadow:var(--sh-lg);z-index:150;
+  opacity:0;pointer-events:none;
+  transition:opacity .25s,transform .25s;
+  transform:translateY(8px);
+}
+#scroll-top:hover{background:rgba(240,240,250,.98);}
+#scroll-top.visible{opacity:1;pointer-events:auto;transform:translateY(0);}
+</style>
+</head>
+<body>
+
+<!-- ── 登入 ── -->
+<div id="login-screen">
+  <div class="login-card">
+    <div class="login-logo">🌱</div>
+    <h1 class="login-title">Pikmin 工具</h1>
+    <p class="login-sub">請登入以繼續</p>
+    <div class="input-group" id="login-inputs">
+      <input id="login-user" type="text"     placeholder="帳號" autocomplete="username"/>
+      <input id="login-pass" type="password" placeholder="密碼" autocomplete="current-password"/>
+    </div>
+    <div id="login-error" class="login-error"></div>
+    <button class="login-btn" onclick="doLogin()">登入</button>
+  </div>
+</div>
+
+<!-- ── 主應用 ── -->
+<div id="main-app">
+
+  <!-- 導覽 -->
+  <nav class="navbar">
+    <div class="navbar-inner">
+      <div class="nav-title"><div class="nav-dot"></div>Pikmin</div>
+      <span class="nav-user" id="nav-user">-</span>
+      <div class="nav-spacer"></div>
+      <button class="save-btn" id="save-btn" onclick="saveToSupabase()" disabled style="display:none;">↑ 儲存</button>
+      <button class="icon-btn" onclick="openSettings()" title="設定">⚙️</button>
+      <button class="logout-btn" onclick="doLogout()">登出</button>
+    </div>
+  </nav>
+
+  <!-- 篩選 -->
+  <div class="filters-wrap" id="filters-wrap">
+    <div class="filters-inner">
+      <div class="search-wrap">
+        <span class="search-icon">🔍</span>
+        <input id="search-input" type="search" class="search-input" placeholder="搜尋裝飾名稱…" oninput="applyFilters()"/>
+      </div>
+      <div class="filter-row">
+        <span class="filter-label">狀態</span>
+        <div class="seg-ctrl" id="status-ctrl">
+          <button class="seg-btn active" data-val="all"       onclick="setStatus(this)">全部</button>
+          <button class="seg-btn"        data-val="collected" onclick="setStatus(this)">已蒐集</button>
+          <button class="seg-btn"        data-val="missing"   onclick="setStatus(this)">未蒐集</button>
+        </div>
+        <span class="filter-label" style="margin-left:4px;">類型</span>
+        <div class="seg-ctrl" id="cattype-ctrl">
+          <button class="seg-btn active" data-val="all"     onclick="setCatType(this)">全部</button>
+          <button class="seg-btn"        data-val="regular" onclick="setCatType(this)">一般</button>
+          <button class="seg-btn"        data-val="special" onclick="setCatType(this)">特別</button>
+        </div>
+      </div>
+      <div class="filter-row" id="pikmin-chips"></div>
+    </div>
+  </div>
+
+  <!-- 進度 -->
+  <div class="progress-section" id="progress-section">
+    <div class="progress-header">
+      <span class="progress-label">收藏進度</span>
+      <span class="progress-nums"><span class="hl" id="p-collected">0</span> / <span id="p-total">0</span></span>
+    </div>
+    <div class="pbar-bg"><div class="pbar-fill" id="pbar" style="width:0%"></div></div>
+  </div>
+
+  <!-- ── Tab: 圖鑑 ── -->
+  <div id="tab-collection" class="tab-pane active">
+    <div class="content">
+
+      <!-- 待辦清單 -->
+      <div class="todo-panel" id="todo-panel">
+        <div class="todo-hd">
+          <div class="todo-title"><div class="todo-icon">📋</div>快要集完的系列</div>
+          <div style="display:flex;align-items:center;gap:8px;">
+            <span class="todo-sub" id="todo-sub"></span>
+            <button class="todo-toggle" id="todo-toggle-btn" onclick="toggleTodo()">收起</button>
+          </div>
+        </div>
+        <div id="todo-body"><div class="todo-list" id="todo-list"></div></div>
+      </div>
+
+      <!-- 展開/縮合控制 -->
+      <div class="cat-controls" id="cat-controls" style="display:none;">
+        <button class="cat-ctrl-btn" onclick="collapseAll()">全部縮合</button>
+        <button class="cat-ctrl-btn" onclick="expandAll()">全部展開</button>
+      </div>
+
+      <div id="loading"><div class="spinner"></div><div class="loading-text">載入圖鑑資料中…</div></div>
+      <div id="collection-grid" style="display:none;"></div>
+      <div id="no-results" style="display:none;" class="no-results">
+        <div class="nr-icon">🔍</div>
+        <div class="nr-text">找不到符合的結果</div>
+        <div class="nr-sub">請嘗試其他關鍵字或篩選條件</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Tab: 計時器 ── -->
+  <div id="tab-timer" class="tab-pane">
+    <div class="timer-content">
+      <div class="timer-top">
+        <div class="timer-page-title">🍄 菇點計時器</div>
+        <button class="add-timer-btn" onclick="openAddTimer()">＋ 新增</button>
+      </div>
+      <div id="timer-list"></div>
+    </div>
+  </div>
+
+  <!-- Tab Bar -->
+  <div class="tab-bar">
+    <button class="tab-btn active" id="tabbtn-collection" onclick="switchTab('collection')">
+      <span class="tab-icon">📖</span>圖鑑
+    </button>
+    <button class="tab-btn" id="tabbtn-timer" onclick="switchTab('timer')">
+      <span class="tab-icon">🍄</span>菇點計時器
+    </button>
+  </div>
+</div>
+
+<!-- ── Modal: 新增計時器 ── -->
+<div class="modal-overlay" id="modal-add-timer" onclick="if(event.target===this)closeModal('modal-add-timer')">
+  <div class="modal-sheet">
+    <div class="modal-handle"></div>
+    <div class="modal-title">新增菇點計時器</div>
+    <div class="modal-body">
+      <div class="form-field">
+        <div class="form-label">蘑菇名稱</div>
+        <input id="timer-name-input" type="text" class="form-input" placeholder="例：公園大蘑菇" maxlength="30"/>
+      </div>
+      <div class="form-field">
+        <div class="form-label">計時時間（自動 +5 分鐘緩衝）</div>
+        <div class="time-row">
+          <input id="timer-min" type="number" class="time-input" placeholder="00" min="0" max="999"/>
+          <span class="time-unit">分</span>
+          <span class="time-sep">:</span>
+          <input id="timer-sec" type="number" class="time-input" placeholder="00" min="0" max="59"/>
+          <span class="time-unit">秒</span>
+        </div>
+        <div class="quick-btns">
+          <button class="q-btn" onclick="addQMin(15)">+15分</button>
+          <button class="q-btn" onclick="addQMin(30)">+30分</button>
+          <button class="q-btn" onclick="addQMin(45)">+45分</button>
+          <button class="q-btn" onclick="addQMin(60)">+1小時</button>
+          <button class="q-btn" onclick="addQMin(90)">+1.5小時</button>
+        </div>
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-cancel" onclick="closeModal('modal-add-timer')">取消</button>
+      <button class="btn btn-confirm" onclick="confirmAddTimer()">開始計時</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── Modal: 刪除確認 ── -->
+<div class="modal-overlay" id="modal-del-confirm" onclick="if(event.target===this)closeModal('modal-del-confirm')">
+  <div class="modal-sheet">
+    <div class="modal-handle"></div>
+    <div class="modal-title">刪除計時器</div>
+    <div class="modal-body">
+      <div style="font-size:15px;color:var(--label3);">確定要刪除「<span id="del-timer-name" style="font-weight:600;color:var(--label)"></span>」的計時器嗎？</div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-cancel" onclick="closeModal('modal-del-confirm')">取消</button>
+      <button class="btn btn-danger" onclick="confirmDeleteTimer()">刪除</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── Modal: 登出確認 ── -->
+<div class="modal-overlay" id="modal-logout" onclick="if(event.target===this)closeModal('modal-logout')">
+  <div class="modal-sheet">
+    <div class="modal-handle"></div>
+    <div class="modal-title" id="logout-modal-title">確定要登出嗎？</div>
+    <div class="modal-body">
+      <div style="font-size:15px;color:var(--label3);" id="logout-modal-msg"></div>
+    </div>
+    <div class="modal-foot" id="logout-modal-foot"></div>
+  </div>
+</div>
+
+<!-- ── Modal: 設定 ── -->
+<div class="modal-overlay" id="modal-settings" onclick="if(event.target===this)closeModal('modal-settings')">
+  <div class="modal-sheet">
+    <div class="modal-handle"></div>
+    <div class="modal-title">設定</div>
+    <div class="modal-body">
+      <div class="setting-row">
+        <div><div class="setting-label">推播通知</div><div class="setting-sub">計時結束時發送系統通知</div></div>
+        <label class="ios-toggle"><input type="checkbox" id="setting-notif" onchange="onSettingChange()"/><span class="ios-slider"></span></label>
+      </div>
+      <div class="setting-row">
+        <div><div class="setting-label">震動提醒</div><div class="setting-sub">計時結束時震動裝置（需支援）</div></div>
+        <label class="ios-toggle"><input type="checkbox" id="setting-vib" onchange="onSettingChange()"/><span class="ios-slider"></span></label>
+      </div>
+      <div class="setting-row">
+        <div><div class="setting-label" style="color:var(--label3);">通知權限狀態</div><div class="setting-sub" id="notif-status-text">-</div></div>
+        <button id="req-notif-btn" onclick="requestNotifPerm()" style="padding:7px 14px;background:var(--blue);color:#fff;border:none;border-radius:20px;font-size:13px;font-weight:600;font-family:inherit;cursor:pointer;display:none;">申請</button>
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-confirm" onclick="closeModal('modal-settings')">完成</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── Modal: 計時器時間到 ── -->
+<div class="modal-overlay" id="modal-timer-done">
+  <div class="modal-sheet">
+    <div class="modal-handle"></div>
+    <div class="modal-title">⏰ 時間到！</div>
+    <div class="modal-body">
+      <div style="font-size:15px;color:var(--label3);">「<span id="done-timer-name" style="font-weight:600;color:var(--label)"></span>」的菇點計時已完成。<br><span style="margin-top:6px;display:block;">是否刪除這個計時器？</span></div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-danger"  onclick="confirmDeleteDoneTimer()">刪除</button>
+      <button class="btn btn-cancel"  onclick="closeModal('modal-timer-done')">保留</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── Modal: 詢問通知 ── -->
+<div class="modal-overlay" id="modal-notif-ask" onclick="if(event.target===this)answerNotif(false)">
+  <div class="modal-sheet">
+    <div class="modal-handle"></div>
+    <div class="modal-body" style="text-align:center;padding:24px 24px 8px;">
+      <div style="font-size:48px;margin-bottom:12px;">🔔</div>
+      <div style="font-size:18px;font-weight:700;margin-bottom:8px;">接受推播通知？</div>
+      <div style="font-size:14px;color:var(--label4);line-height:1.6;">菇點計時器結束時，可透過系統通知提醒您，即使頁面在背景也有效。</div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-cancel" onclick="answerNotif(false)">不要</button>
+      <button class="btn btn-confirm" onclick="answerNotif(true)">允許通知</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast"></div>
+<button id="scroll-top" onclick="window.scrollTo({top:0,behavior:'smooth'})">↑</button>
+
+<script>
+// ══════════════════════════════════════════
+// ⚙️ CONFIG
+// ══════════════════════════════════════════
+const CONFIG = {
+  supabaseUrl: 'https://fvrtfkifwnoypwyghjfk.supabase.co',
+  supabaseKey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZ2cnRma2lmd25veXB3eWdoamZrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzYzMzU2NzIsImV4cCI6MjA5MTkxMTY3Mn0.p_z_7lR5PlzbjSu9cygp2At9xs88pnqPNIdF4iI6Vh0',
+};
+
+const ACCOUNTS = [
+  {username:'user1',password:'pikmin1'},
+  {username:'user2',password:'pikmin2'},
+  {username:'user3',password:'pikmin3'},
+  {username:'user4',password:'pikmin4'},
+  {username:'user5',password:'pikmin5'},
+];
+
+const DECOR_URL = 'https://raw.githubusercontent.com/scott0127/pik_tool/main/app/data/decor.json';
+
+const PKMAP = {
+  all:   {label:'全部',color:'#8e8e93',bg:'rgba(142,142,147,.15)'},
+  red:   {label:'紅',  color:'#ff3b30',bg:'rgba(255,59,48,.12)'},
+  yellow:{label:'黃',  color:'#d4a017',bg:'rgba(255,204,0,.14)'},
+  blue:  {label:'藍',  color:'#007aff',bg:'rgba(0,122,255,.12)'},
+  white: {label:'白',  color:'#8e8e93',bg:'rgba(142,142,147,.15)'},
+  purple:{label:'紫',  color:'#af52de',bg:'rgba(175,82,222,.12)'},
+  rock:  {label:'石',  color:'#6d6068',bg:'rgba(109,96,104,.13)'},
+  winged:{label:'翼',  color:'#ff2d55',bg:'rgba(255,45,85,.12)'},
+  ice:   {label:'冰',  color:'#32ade6',bg:'rgba(50,173,230,.13)'},
+};
+
+// ── 狀態 ──
+let sbClient=null, decorData=null, currentUser=null;
+let collectedIds=new Set(), pendingAdd=new Set(), pendingRemove=new Set();
+let filterStatus='all', filterCatType='all', filterPikmin='all', searchQuery='';
+let todoExpanded=true;
+let collapsedCats=new Set();
+
+// ── 設定 ──
+const loadSettings=()=>{ try{return JSON.parse(localStorage.getItem('pik_settings')||'{}')}catch{return{}} };
+const saveSettings=s=>localStorage.setItem('pik_settings',JSON.stringify(s));
+const getSetting=(k,d)=>{ const s=loadSettings(); return k in s?s[k]:d; };
+const setSetting=(k,v)=>{ const s=loadSettings(); s[k]=v; saveSettings(s); };
+
+// ══════════════════════════════════════════
+// 圖片 URL 正規化（修正本地路徑）
+// ══════════════════════════════════════════
+function normalizeImg(url) {
+  if (!url) return null;
+  if (url.startsWith('http')) return url;
+  if (url.startsWith('/'))   return 'https://pik-tool.onrender.com' + url;
+  return null;
+}
+
+// ══════════════════════════════════════════
+// Modal 系統
+// ══════════════════════════════════════════
+function openModal(id)  { document.getElementById(id).classList.add('open'); }
+function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+
+// ══════════════════════════════════════════
+// 登入 / 登出
+// ══════════════════════════════════════════
+['login-user','login-pass'].forEach(id=>
+  document.getElementById(id).addEventListener('keydown',e=>{ if(e.key==='Enter') doLogin(); })
+);
+
+function _enterApp(username) {
+  currentUser = username;
+  switchTab('collection');
+  document.getElementById('login-screen').style.display='none';
+  document.getElementById('main-app').style.display='block';
+  document.getElementById('nav-user').textContent='👤 '+currentUser;
+  document.getElementById('save-btn').style.display='flex';
+  initApp();
+}
+
+async function doLogin() {
+  const user=document.getElementById('login-user').value.trim();
+  const pass=document.getElementById('login-pass').value;
+  const errEl=document.getElementById('login-error');
+  const inpEl=document.getElementById('login-inputs');
+  const acct=ACCOUNTS.find(a=>a.username===user&&a.password===pass);
+  if (!acct) {
+    errEl.textContent='帳號或密碼錯誤';
+    inpEl.classList.add('shake');
+    document.getElementById('login-pass').value='';
+    setTimeout(()=>inpEl.classList.remove('shake'),400);
+    return;
+  }
+  errEl.textContent='';
+  localStorage.setItem('pik_session', user);
+  _enterApp(user);
+  if (!getSetting('notifAsked',false) && 'Notification' in window && Notification.permission==='default')
+    setTimeout(()=>openModal('modal-notif-ask'),900);
+}
+
+function doLogout() {
+  const hasPending = (pendingAdd.size + pendingRemove.size) > 0;
+  document.getElementById('logout-modal-title').textContent = hasPending ? '有未儲存的變更' : '確定要登出嗎？';
+  document.getElementById('logout-modal-msg').textContent = hasPending
+    ? `您有 ${pendingAdd.size+pendingRemove.size} 筆變更尚未儲存至 Supabase，登出後將遺失。`
+    : '登出後需重新登入才能繼續使用。';
+  document.getElementById('logout-modal-foot').innerHTML = hasPending
+    ? `<button class="btn btn-confirm" onclick="saveAndLogout()">儲存並登出</button>
+       <button class="btn btn-danger"  onclick="executeLogout()">不儲存登出</button>
+       <button class="btn btn-cancel"  onclick="closeModal('modal-logout')">取消</button>`
+    : `<button class="btn btn-confirm" onclick="executeLogout()">登出</button>
+       <button class="btn btn-cancel"  onclick="closeModal('modal-logout')">取消</button>`;
+  openModal('modal-logout');
+}
+async function saveAndLogout() {
+  closeModal('modal-logout');
+  await saveToSupabase();
+  executeLogout();
+}
+function executeLogout() {
+  closeModal('modal-logout');
+  localStorage.removeItem('pik_session');
+  currentUser=null; collectedIds=new Set(); pendingAdd=new Set(); pendingRemove=new Set();
+  decorData=null; collapsedCats=new Set();
+  stopTimerLoop();
+  document.getElementById('main-app').style.display='none';
+  document.getElementById('login-screen').style.display='flex';
+  document.getElementById('login-user').value='';
+  document.getElementById('login-pass').value='';
+  document.getElementById('collection-grid').innerHTML='';
+  document.getElementById('collection-grid').style.display='none';
+  document.getElementById('loading').style.display='flex';
+  document.getElementById('loading').innerHTML='<div class="spinner"></div><div class="loading-text">載入圖鑑資料中…</div>';
+  document.getElementById('cat-controls').style.display='none';
+  resetSaveBtn();
+}
+
+// ══════════════════════════════════════════
+// Tab 切換
+// ══════════════════════════════════════════
+let currentTab='collection';
+function switchTab(tab) {
+  currentTab=tab;
+  document.querySelectorAll('.tab-pane').forEach(e=>e.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(e=>e.classList.remove('active'));
+  document.getElementById('tab-'+tab).classList.add('active');
+  document.getElementById('tabbtn-'+tab).classList.add('active');
+  const isColl=tab==='collection';
+  document.getElementById('filters-wrap').style.display   = isColl?'':'none';
+  document.getElementById('progress-section').style.display=isColl?'':'none';
+  document.getElementById('save-btn').style.display       = isColl?'flex':'none';
+  if (tab !== 'collection') document.getElementById('scroll-top').classList.remove('visible');
+  if (tab==='timer') renderTimers();
+}
+
+// ══════════════════════════════════════════
+// 初始化
+// ══════════════════════════════════════════
+async function initApp() {
+  if (!initApp._scrollBound) {
+    initApp._scrollBound = true;
+    window.addEventListener('scroll',()=>{
+      const show = window.scrollY > 300 && currentTab === 'collection';
+      document.getElementById('scroll-top').classList.toggle('visible', show);
+    });
+  }
+  const loadEl=document.getElementById('loading');
+  try {
+    if (!window.supabase?.createClient) throw new Error('Supabase SDK 未載入，請確認網路連線後重新整理');
+    sbClient=window.supabase.createClient(CONFIG.supabaseUrl,CONFIG.supabaseKey);
+
+    loadEl.innerHTML='<div class="spinner"></div><div class="loading-text">載入圖鑑資料中…</div>';
+    const res=await fetch(DECOR_URL);
+    if (!res.ok) throw new Error(`無法取得資料 (HTTP ${res.status})`);
+    decorData=await res.json();
+
+    loadEl.innerHTML='<div class="spinner"></div><div class="loading-text">讀取收藏紀錄中…</div>';
+    const {data,error}=await sbClient.from('collected_items').select('item_id').eq('username',currentUser);
+    if (error) {
+      if (error.code==='42P01') throw new Error('資料表不存在，請先執行建表 SQL');
+      throw new Error('Supabase 錯誤: '+error.message);
+    }
+    if (data) collectedIds=new Set(data.map(d=>d.item_id));
+
+    buildPikminChips();
+    renderAll();
+    updateStats();
+    startTimerLoop();
+  } catch(err) {
+    console.error(err);
+    loadEl.innerHTML=`<div style="text-align:center;max-width:300px;">
+      <div style="font-size:40px;margin-bottom:12px;">⚠️</div>
+      <div style="font-size:17px;font-weight:600;margin-bottom:8px;">載入失敗</div>
+      <div style="font-size:14px;color:var(--label4);line-height:1.5;">${err.message}</div>
+      <button onclick="location.reload()" style="margin-top:16px;padding:10px 24px;background:var(--blue);color:#fff;border:none;border-radius:10px;font-size:15px;font-weight:600;cursor:pointer;font-family:inherit;">重新整理</button>
+    </div>`;
+  }
+}
+
+// ── Pikmin chips ──
+function buildPikminChips() {
+  const c=document.getElementById('pikmin-chips');
+  c.innerHTML='<span class="filter-label">Pikmin</span>';
+  for (const [key,cfg] of Object.entries(PKMAP)) {
+    const btn=document.createElement('button');
+    btn.className='chip'+(key==='all'?' active':'');
+    btn.dataset.type=key;
+    if (key==='all'){btn.style.background=cfg.bg;btn.style.color=cfg.color;}
+    if (key!=='all'){const d=document.createElement('span');d.className='chip-dot';d.style.background=cfg.color;btn.appendChild(d);}
+    btn.appendChild(document.createTextNode(cfg.label));
+    btn.onclick=()=>setPikmin(btn,key);
+    c.appendChild(btn);
+  }
+}
+
+// ── 篩選 ──
+function setStatus(el){document.querySelectorAll('#status-ctrl .seg-btn').forEach(b=>b.classList.remove('active'));el.classList.add('active');filterStatus=el.dataset.val;applyFilters();}
+function setCatType(el){document.querySelectorAll('#cattype-ctrl .seg-btn').forEach(b=>b.classList.remove('active'));el.classList.add('active');filterCatType=el.dataset.val;applyFilters();}
+function setPikmin(el,type){
+  document.querySelectorAll('#pikmin-chips .chip').forEach(b=>{b.classList.remove('active');b.style.background='';b.style.color='';});
+  el.classList.add('active');const cfg=PKMAP[type];el.style.background=cfg.bg;el.style.color=cfg.color;
+  filterPikmin=type;applyFilters();
+}
+function applyFilters(){searchQuery=document.getElementById('search-input').value.trim().toLowerCase();renderAll();updateStats();}
+
+// ── safeId ──
+const safeId=id=>String(id).replace(/[^a-zA-Z0-9_-]/g,'_');
+
+// ══════════════════════════════════════════
+// 渲染圖鑑
+// ══════════════════════════════════════════
+function renderAll() {
+  if (!decorData) return;
+  const grid=document.getElementById('collection-grid');
+  const noRes=document.getElementById('no-results');
+  document.getElementById('loading').style.display='none';
+  grid.style.display='block'; grid.innerHTML='';
+  let anyVisible=false;
+
+  for (const def of (decorData.definitions||[])) {
+    const cat=def.category, variants=def.variants||[], allTypes=def.availablePikminTypes||[];
+    const sid=safeId(cat.id);
+    if (filterCatType!=='all'&&cat.type!==filterCatType) continue;
+    const typesToShow=filterPikmin==='all'?allTypes:allTypes.includes(filterPikmin)?[filterPikmin]:[];
+    if (!typesToShow.length) continue;
+
+    const cards=[];
+    for (const v of variants) {
+      if (searchQuery) {
+        const m=v.name?.toLowerCase().includes(searchQuery)||v.nameEn?.toLowerCase().includes(searchQuery)
+              ||cat.name?.toLowerCase().includes(searchQuery)||cat.nameEn?.toLowerCase().includes(searchQuery);
+        if (!m) continue;
+      }
+      for (const pt of typesToShow) {
+        // 正規化圖片 URL（修正彩色粉末等使用本地路徑的分類）
+        const imgUrl = normalizeImg(v.imageUrls?.[pt]) || normalizeImg(v.imageUrl);
+        if (!imgUrl) continue;
+        const itemId=`${v.id}_${pt}`, isCol=collectedIds.has(itemId);
+        if (filterStatus==='collected'&&!isCol) continue;
+        if (filterStatus==='missing'&&isCol) continue;
+        cards.push({v,pt,itemId,isCol,imgUrl});
+      }
+    }
+    if (!cards.length) continue;
+    anyVisible=true;
+
+    let catTotal=0,catDone=0;
+    for (const v of variants) for (const pt of typesToShow) {
+      const url=normalizeImg(v.imageUrls?.[pt])||normalizeImg(v.imageUrl);
+      if (!url) continue;
+      catTotal++;
+      if (collectedIds.has(`${v.id}_${pt}`)) catDone++;
+    }
+    const catPct=catTotal>0?Math.round(catDone/catTotal*100):0;
+    const isSpec=cat.type==='special';
+    const isCollapsed=collapsedCats.has(sid);
+
+    const section=document.createElement('div');
+    section.className='cat-section'; section.id=`cat-${sid}`;
+    section.innerHTML=`
+      <div class="cat-hd${isSpec?' special':''}" id="cathd-${sid}" onclick="toggleCat('${sid}')">
+        <span class="cat-toggle-icon${isCollapsed?' collapsed':''}">▾</span>
+        <span class="cat-name">${cat.name}</span>
+        <span class="cat-en">${cat.nameEn||''}</span>
+        <span class="cat-badge ${isSpec?'special':'regular'}">${isSpec?'特別':'一般'}</span>
+        <div class="cat-spacer"></div>
+        <div class="cat-pbar"><div class="cat-pbar-fill" id="cpbar-${sid}" style="width:${catPct}%"></div></div>
+        <span class="cat-prog" id="cprog-${sid}"><b>${catDone}</b>/${catTotal}</span>
+      </div>
+      <div class="cat-body" id="cbody-${sid}" style="max-height:${isCollapsed?'0':'none'}">
+        <div class="items-grid" id="igrid-${sid}"></div>
+      </div>`;
+    grid.appendChild(section);
+    const igrid=document.getElementById(`igrid-${sid}`);
+
+    for (const {v,pt,itemId,isCol,imgUrl} of cards) {
+      try {
+        const isRare=v.id?.includes('rare');
+        const ptCfg=PKMAP[pt]||{};
+        const label=`${v.name} · ${ptCfg.label??pt}`;
+        const card=document.createElement('div');
+        card.className='item-card'+(isCol?' collected':'');
+        card.dataset.id=itemId;
+        card.setAttribute('data-label',label);
+        card.innerHTML=`
+          <img class="item-img" src="${imgUrl}" alt="${label}" loading="lazy" onerror="this.src='data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2280%22>🌱</text></svg>'"/>
+          <div class="check-badge">✓</div>
+          ${isRare?'<div class="rare-badge">★</div>':''}
+          <div class="pikmin-dot" style="background:${ptCfg.color??'#888'};border-color:rgba(255,255,255,.9)"></div>`;
+        card.onclick=()=>toggleItem(itemId,sid,allTypes,variants);
+        igrid.appendChild(card);
+      } catch(e){console.warn('card err',v?.id,pt,e);}
+    }
+  }
+
+  document.getElementById('cat-controls').style.display=anyVisible?'flex':'none';
+  updateTodoList();
+  if (anyVisible){grid.style.display='block';noRes.style.display='none';}
+  else{grid.style.display='none';noRes.style.display='block';}
+}
+
+// ── 縮合展開 ──
+function expandBody(body) {
+  // measure real height, then animate from 0 → real height, then release to 'none'
+  body.style.maxHeight = 'none';
+  const full = body.scrollHeight;
+  body.style.maxHeight = '0';
+  body.offsetHeight; // force reflow
+  body.style.maxHeight = full + 'px';
+  body.addEventListener('transitionend', () => { if (body.style.maxHeight !== '0px') body.style.maxHeight = 'none'; }, {once:true});
+}
+function collapseBody(body) {
+  body.style.maxHeight = body.scrollHeight + 'px';
+  body.offsetHeight; // force reflow
+  body.style.maxHeight = '0';
+}
+
+function toggleCat(sid) {
+  const body = document.getElementById(`cbody-${sid}`);
+  const icon = document.querySelector(`#cathd-${sid} .cat-toggle-icon`);
+  if (collapsedCats.has(sid)) {
+    collapsedCats.delete(sid);
+    if (body) expandBody(body);
+    if (icon) icon.classList.remove('collapsed');
+  } else {
+    collapsedCats.add(sid);
+    if (body) collapseBody(body);
+    if (icon) icon.classList.add('collapsed');
+  }
+}
+function collapseAll() {
+  document.querySelectorAll('.cat-section').forEach(s => {
+    const sid = s.id.replace('cat-','');
+    collapsedCats.add(sid);
+    const body = document.getElementById(`cbody-${sid}`);
+    const icon = document.querySelector(`#cathd-${sid} .cat-toggle-icon`);
+    if (body) collapseBody(body);
+    if (icon) icon.classList.add('collapsed');
+  });
+}
+function expandAll() {
+  collapsedCats.clear();
+  document.querySelectorAll('.cat-section').forEach(s => {
+    const sid = s.id.replace('cat-','');
+    const body = document.getElementById(`cbody-${sid}`);
+    const icon = document.querySelector(`#cathd-${sid} .cat-toggle-icon`);
+    if (body) expandBody(body);
+    if (icon) icon.classList.remove('collapsed');
+  });
+}
+
+// ══════════════════════════════════════════
+// 待辦清單（排序：比例高→低，最多 5 筆，第5後同%全顯）
+// ══════════════════════════════════════════
+function toggleTodo(){
+  todoExpanded=!todoExpanded;
+  document.getElementById('todo-body').style.display=todoExpanded?'':'none';
+  document.getElementById('todo-toggle-btn').textContent=todoExpanded?'收起':'展開';
+}
+
+function updateTodoList(preserveScroll=false) {
+  if (!decorData) return;
+  const panel=document.getElementById('todo-panel');
+  const list =document.getElementById('todo-list');
+  const prevH = preserveScroll ? panel.offsetHeight : 0;
+  const savedY = preserveScroll ? window.scrollY : 0;
+
+  const stats=[];
+  for (const def of (decorData.definitions||[])) {
+    const cat=def.category, variants=def.variants||[], allTypes=def.availablePikminTypes||[];
+    let total=0,done=0;
+    for (const v of variants) for (const pt of allTypes) {
+      const url=normalizeImg(v.imageUrls?.[pt])||normalizeImg(v.imageUrl);
+      if (!url) continue;
+      total++;
+      if (collectedIds.has(`${v.id}_${pt}`)) done++;
+    }
+    if (total===0||done===0) continue;           // 未開始的不顯示
+    const pct=Math.round(done/total*100);
+    if (pct===100) continue;                     // 已完成的不顯示
+    stats.push({cat,total,done,missing:total-done,pct});
+  }
+
+  if (!stats.length) {
+    list.innerHTML='<div class="todo-empty">還沒有蒐集紀錄，勾選後即時更新！</div>';
+    document.getElementById('todo-sub').textContent='';
+    return;
+  }
+
+  // 排序：比例從高到低
+  stats.sort((a,b)=>b.pct-a.pct||a.missing-b.missing);
+
+  // 決定顯示筆數：最多 5，但第 5 後若 % 相同則繼續顯示直到不同
+  let showN=Math.min(5,stats.length);
+  if (stats.length>5) {
+    const cut=stats[4].pct;
+    while (showN<stats.length && stats[showN].pct===cut) showN++;
+  }
+  const items=stats.slice(0,showN);
+
+  document.getElementById('todo-sub').textContent=`${items.length} / ${stats.length} 個系列`;
+  const rc=['r1','r2','r3'];
+  list.innerHTML=items.map((s,i)=>{
+    const tier=s.pct>=80?'hi':s.pct>=50?'md':'lo';
+    return `<div class="todo-item">
+      <div class="todo-rank ${rc[i]||''}">${i+1}</div>
+      <div class="todo-info">
+        <div class="todo-name">${s.cat.name}</div>
+        <div class="todo-meta">${s.cat.nameEn||''} · ${s.done}/${s.total}</div>
+      </div>
+      <div class="todo-bar-wrap">
+        <div class="todo-bar-bg"><div class="todo-bar-fill bar-${tier}" style="width:${s.pct}%"></div></div>
+        <div class="todo-pct pct-${tier}">${s.pct}%</div>
+      </div>
+      <div class="todo-missing">差 ${s.missing} 個</div>
+    </div>`;
+  }).join('');
+  if (preserveScroll) {
+    requestAnimationFrame(()=>{
+      const delta = panel.offsetHeight - prevH;
+      if (delta !== 0) window.scrollTo({top: savedY + delta, behavior: 'instant'});
+    });
+  }
+}
+
+// ══════════════════════════════════════════
+// 切換蒐集
+// ══════════════════════════════════════════
+function toggleItem(itemId,sid,allTypes,variants) {
+  const was=collectedIds.has(itemId);
+  if (was){collectedIds.delete(itemId);if(pendingAdd.has(itemId))pendingAdd.delete(itemId);else pendingRemove.add(itemId);}
+  else{collectedIds.add(itemId);if(pendingRemove.has(itemId))pendingRemove.delete(itemId);else pendingAdd.add(itemId);}
+  const card=document.querySelector(`.item-card[data-id="${CSS.escape(itemId)}"]`);
+  if (card) card.classList.toggle('collected',!was);
+  updateCatProgress(sid,allTypes,variants);
+  updateStats();
+  updateSaveBtn();
+  updateTodoList(true); // 即時更新，保持捲動位置
+}
+
+// ── 分類進度 ──
+function updateCatProgress(sid,allTypes,variants) {
+  const types=filterPikmin==='all'?allTypes:allTypes.includes(filterPikmin)?[filterPikmin]:allTypes;
+  let total=0,done=0;
+  for (const v of variants) for (const pt of types) {
+    const url=normalizeImg(v.imageUrls?.[pt])||normalizeImg(v.imageUrl);
+    if (!url) continue; total++;
+    if (collectedIds.has(`${v.id}_${pt}`)) done++;
+  }
+  const pct=total>0?Math.round(done/total*100):0;
+  const bar=document.getElementById(`cpbar-${sid}`);
+  const prog=document.getElementById(`cprog-${sid}`);
+  if (bar) bar.style.width=pct+'%';
+  if (prog) prog.innerHTML=`<b>${done}</b>/${total}`;
+}
+
+// ── 全域統計 ──
+function updateStats() {
+  if (!decorData) return;
+  let total=0;
+  for (const def of (decorData.definitions||[]))
+    for (const v of (def.variants||[]))
+      for (const pt of (def.availablePikminTypes||[])) {
+        const url=normalizeImg(v.imageUrls?.[pt])||normalizeImg(v.imageUrl);
+        if (url) total++;
+      }
+  const done=collectedIds.size,pct=total>0?Math.round(done/total*100):0;
+  document.getElementById('p-collected').textContent=done;
+  document.getElementById('p-total').textContent=total;
+  document.getElementById('pbar').style.width=pct+'%';
+}
+
+// ── Supabase 儲存 ──
+async function saveToSupabase() {
+  if (!sbClient||(!pendingAdd.size&&!pendingRemove.size)) return;
+  const btn=document.getElementById('save-btn');
+  btn.textContent='儲存中…'; btn.disabled=true;
+  try {
+    const ops=[];
+    if (pendingAdd.size) ops.push(sbClient.from('collected_items').upsert([...pendingAdd].map(id=>({username:currentUser,item_id:id})),{onConflict:'username,item_id'}));
+    for (const id of pendingRemove) ops.push(sbClient.from('collected_items').delete().eq('username',currentUser).eq('item_id',id));
+    const res=await Promise.all(ops);
+    const fail=res.filter(r=>r.error);
+    if (fail.length) throw new Error(fail[0].error.message);
+    pendingAdd.clear(); pendingRemove.clear();
+    showToast('✓ 已儲存','green'); resetSaveBtn();
+  } catch(err){showToast('儲存失敗：'+err.message,'red');resetSaveBtn();updateSaveBtn();}
+}
+function updateSaveBtn(){
+  const btn=document.getElementById('save-btn');
+  const n=pendingAdd.size+pendingRemove.size;
+  btn.disabled=(n===0);
+  btn.innerHTML=n>0?`↑ 儲存 <span class="save-badge-n">${n}</span>`:'↑ 儲存';
+}
+function resetSaveBtn(){const b=document.getElementById('save-btn');b.innerHTML='↑ 儲存';b.disabled=true;}
+
+// ── Toast ──
+function showToast(msg,type=''){
+  const el=document.getElementById('toast');
+  el.textContent=msg; el.className='show '+(type||'');
+  clearTimeout(el._t); el._t=setTimeout(()=>{el.className='';},2800);
+}
+
+// ══════════════════════════════════════════
+// 計時器
+// ══════════════════════════════════════════
+let mushTimers=[], timerInterval=null, pendingDelIdx=null;
+
+function loadTimerState(){
+  try{mushTimers=JSON.parse(localStorage.getItem(`ptimers_${currentUser}`)||'[]');}catch{mushTimers=[];}
+  const now=Date.now();
+  mushTimers=mushTimers.filter(t=>t.endTime>now-10*60*1000);
+  saveTimerState();
+}
+function saveTimerState(){ localStorage.setItem(`ptimers_${currentUser}`,JSON.stringify(mushTimers)); }
+
+function startTimerLoop(){
+  loadTimerState(); renderTimers();
+  if (timerInterval) clearInterval(timerInterval);
+  timerInterval=setInterval(timerTick,1000);
+}
+function stopTimerLoop(){ if(timerInterval){clearInterval(timerInterval);timerInterval=null;} }
+
+let doneTimerRef=null;
+
+function timerTick(){
+  const now=Date.now(); let changed=false;
+  const appVisible=document.visibilityState==='visible';
+  for (const t of mushTimers){
+    if (!t.notified&&now>=t.endTime){
+      t.notified=true; changed=true;
+      triggerAlert(t, appVisible);
+    }
+  }
+  if (changed) saveTimerState();
+  if (currentTab==='timer') renderTimers();
+}
+
+function triggerAlert(timer, appVisible){
+  if (getSetting('vibEnabled',true)&&navigator.vibrate) navigator.vibrate([300,150,300,150,600]);
+  if (getSetting('notifEnabled',true)&&Notification.permission==='granted'){
+    const n=new Notification(`⏰ ${timer.name} 時間到！`,{
+      body:'點擊通知自動刪除計時器',
+      requireInteraction:true
+    });
+    n.onclick=()=>{
+      window.focus();
+      n.close();
+      const idx=mushTimers.indexOf(timer);
+      if (idx!==-1){mushTimers.splice(idx,1);saveTimerState();renderTimers();}
+    };
+  }
+  if (appVisible){
+    // 在 app 內：跳出小畫面詢問是否刪除
+    doneTimerRef=timer;
+    document.getElementById('done-timer-name').textContent=timer.name;
+    openModal('modal-timer-done');
+  } else {
+    showToast(`⏰ ${timer.name} 時間到！`);
+  }
+}
+
+function confirmDeleteDoneTimer(){
+  closeModal('modal-timer-done');
+  if (doneTimerRef){
+    const idx=mushTimers.indexOf(doneTimerRef);
+    if (idx!==-1){mushTimers.splice(idx,1);saveTimerState();renderTimers();}
+    doneTimerRef=null;
+  }
+}
+
+function renderTimers(){
+  const container=document.getElementById('timer-list');
+  if (!mushTimers.length){
+    container.innerHTML='<div class="timer-empty"><div class="te-icon">🍄</div><div class="te-title">還沒有計時器</div><div style="font-size:14px;color:var(--label4);">點右上角「新增」開始</div></div>';
+    return;
+  }
+  const now=Date.now(), R=24, CIRC=2*Math.PI*R;
+  container.innerHTML=mushTimers.map((t,i)=>{
+    const remain=Math.max(0,t.endTime-now);
+    const ratio =Math.max(0,Math.min(1,remain/(t.endTime-t.startTime)));
+    const isDone=remain===0;
+    const mm=Math.floor(remain/60000), ss=Math.floor((remain%60000)/1000);
+    const timeStr=isDone?'時間到！':`${String(mm).padStart(2,'0')}:${String(ss).padStart(2,'0')}`;
+    const endStr=new Date(t.endTime).toLocaleTimeString('zh-TW',{hour:'2-digit',minute:'2-digit'});
+    const colorCls=isDone?'done-c':mm<5?'red':mm<15?'orange':'green';
+    const ringColor=isDone?'#ff9500':mm<5?'#ff3b30':mm<15?'#ff9500':'#34c759';
+    const offset=CIRC*(1-ratio);
+    return `<div class="timer-card${isDone?' done':''}">
+      <div class="timer-ring">
+        <svg width="56" height="56" viewBox="0 0 56 56">
+          <circle class="ring-bg" cx="28" cy="28" r="${R}"/>
+          <circle class="ring-fg" cx="28" cy="28" r="${R}" stroke="${ringColor}" stroke-dasharray="${CIRC}" stroke-dashoffset="${offset}"/>
+        </svg>
+        <div class="ring-label">${isDone?'完成':Math.round(ratio*100)+'%'}</div>
+      </div>
+      <div class="timer-info">
+        <div class="timer-name">${escHtml(t.name)}</div>
+        <div class="timer-cd ${colorCls}">${timeStr}</div>
+        <div class="timer-end">結束時間 ${endStr}</div>
+      </div>
+      <button class="timer-del" onclick="askDeleteTimer(${i})" title="刪除">✕</button>
+    </div>`;
+  }).join('');
+}
+
+function escHtml(s){return s.replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
+
+// 刪除確認
+function askDeleteTimer(idx){
+  pendingDelIdx=idx;
+  document.getElementById('del-timer-name').textContent=mushTimers[idx]?.name||'';
+  openModal('modal-del-confirm');
+}
+function confirmDeleteTimer(){
+  if (pendingDelIdx!==null){mushTimers.splice(pendingDelIdx,1);saveTimerState();pendingDelIdx=null;}
+  closeModal('modal-del-confirm');
+  renderTimers();
+}
+
+// 新增計時器
+function openAddTimer(){
+  document.getElementById('timer-name-input').value='';
+  document.getElementById('timer-min').value='';
+  document.getElementById('timer-sec').value='';
+  openModal('modal-add-timer');
+  setTimeout(()=>document.getElementById('timer-name-input').focus(),350);
+}
+function addQMin(n){
+  const inp=document.getElementById('timer-min');
+  inp.value=String((parseInt(inp.value)||0)+n);
+}
+function confirmAddTimer(){
+  const name=document.getElementById('timer-name-input').value.trim();
+  const min =Math.max(0,parseInt(document.getElementById('timer-min').value)||0);
+  const sec =Math.max(0,Math.min(59,parseInt(document.getElementById('timer-sec').value)||0));
+  const totalSec=min*60+sec;
+  if (!name){showToast('請輸入蘑菇名稱','red');return;}
+  if (totalSec<1){showToast('請輸入計時時間','red');return;}
+  const bufMs=5*60*1000;
+  const duration=totalSec*1000+bufMs;
+  mushTimers.push({id:Date.now().toString(),name,startTime:Date.now(),endTime:Date.now()+duration,duration,notified:false});
+  saveTimerState();
+  closeModal('modal-add-timer');
+  renderTimers();
+  const displayStr=min>0?`${min}分${sec>0?sec+'秒':''}`:`${sec}秒`;
+  showToast(`✓ 計時 ${displayStr}+5分 開始`,'green');
+}
+
+// 設定
+function openSettings(){
+  const s=loadSettings();
+  document.getElementById('setting-notif').checked=s.notifEnabled!==false;
+  document.getElementById('setting-vib').checked=s.vibEnabled!==false;
+  updateNotifStatusUI();
+  openModal('modal-settings');
+}
+function onSettingChange(){
+  setSetting('notifEnabled',document.getElementById('setting-notif').checked);
+  setSetting('vibEnabled',document.getElementById('setting-vib').checked);
+  updateNotifStatusUI();
+}
+function updateNotifStatusUI(){
+  if (!('Notification' in window)){document.getElementById('notif-status-text').textContent='此裝置不支援推播通知';document.getElementById('req-notif-btn').style.display='none';return;}
+  const p=Notification.permission;
+  document.getElementById('notif-status-text').textContent={'granted':'✅ 已授權','denied':'❌ 已封鎖（請在瀏覽器設定解除）','default':'⚠️ 尚未授權'}[p]||p;
+  document.getElementById('req-notif-btn').style.display=p==='default'?'':'none';
+}
+async function requestNotifPerm(){
+  const r=await Notification.requestPermission();
+  setSetting('notifAsked',true); updateNotifStatusUI();
+  showToast(r==='granted'?'✓ 通知已開啟':'通知未獲授權',r==='granted'?'green':'red');
+}
+async function answerNotif(yes){
+  closeModal('modal-notif-ask'); setSetting('notifAsked',true);
+  if (yes){const r=await Notification.requestPermission();setSetting('notifEnabled',r==='granted');showToast(r==='granted'?'✓ 通知已開啟':'通知未獲授權',r==='granted'?'green':'red');}
+  else setSetting('notifEnabled',false);
+}
+
+// ── 自動還原登入（放在所有定義之後）──
+(function restoreSession(){
+  try {
+    const saved = localStorage.getItem('pik_session');
+    if (!saved) return;
+    const acct = ACCOUNTS.find(a => a.username === saved);
+    if (!acct) { localStorage.removeItem('pik_session'); return; }
+    localStorage.setItem('pik_session', acct.username); // 確保仍有效
+    _enterApp(acct.username);
+    if (!getSetting('notifAsked',false) && 'Notification' in window && Notification.permission==='default')
+      setTimeout(()=>openModal('modal-notif-ask'), 900);
+  } catch(e) { console.warn('restoreSession error', e); }
+})();
+</script>
+</body>
+</html>
