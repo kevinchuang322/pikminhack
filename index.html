@@ -18,6 +18,7 @@
   --safe-b:env(safe-area-inset-bottom,0px);
   --tab-total:calc(var(--tab-h) + var(--safe-b));
   --px:20px;
+  --nav-h:52px;
 }
 *{box-sizing:border-box;margin:0;padding:0;}
 body{background:var(--bg);color:var(--label);font-family:-apple-system,BlinkMacSystemFont,"SF Pro Display","Helvetica Neue","Segoe UI",sans-serif;-webkit-font-smoothing:antialiased;min-height:100vh;overflow-x:clip;}
@@ -42,7 +43,10 @@ body{background:var(--bg);color:var(--label);font-family:-apple-system,BlinkMacS
 #main-app{display:none;}
 
 /* ── 頂部導覽 ── */
-.navbar{position:sticky;top:0;z-index:100;background:rgba(242,242,247,.92);backdrop-filter:saturate(180%) blur(20px);border-bottom:1px solid var(--sep);}
+.navbar{position:fixed;top:0;left:0;right:0;z-index:100;background:rgba(242,242,247,.92);backdrop-filter:saturate(180%) blur(20px);border-bottom:1px solid var(--sep);}
+html.dark .navbar{background:rgba(28,28,30,.94);}
+html.dark .filters-wrap{background:rgba(28,28,30,.94);}
+html.dark .tab-bar{background:rgba(28,28,30,.96);}
 .navbar-inner{max-width:1400px;margin:0 auto;padding-top:0;padding-bottom:0;padding-left:24px;padding-right:24px;display:flex;align-items:center;gap:10px;height:52px;}
 .nav-title{font-size:17px;font-weight:600;display:flex;align-items:center;gap:7px;flex-shrink:0;}
 .nav-dot{width:8px;height:8px;background:var(--green);border-radius:50%;}
@@ -58,7 +62,7 @@ body{background:var(--bg);color:var(--label);font-family:-apple-system,BlinkMacS
 .logout-btn:hover{background:rgba(255,59,48,.1);color:var(--red);}
 
 /* ── 篩選區 ── */
-.filters-wrap{background:rgba(242,242,247,.92);backdrop-filter:saturate(180%) blur(20px);border-bottom:1px solid var(--sep);position:sticky;top:52px;z-index:90;}
+.filters-wrap{background:rgba(242,242,247,.92);backdrop-filter:saturate(180%) blur(20px);border-bottom:1px solid var(--sep);position:fixed;top:52px;left:0;right:0;z-index:90;}
 .filters-inner{max-width:1400px;margin:0 auto;padding-top:10px;padding-bottom:12px;padding-left:24px;padding-right:24px;display:flex;flex-direction:column;gap:10px;}
 .search-wrap{position:relative;}
 .search-icon{position:absolute;left:11px;top:50%;transform:translateY(-50%);color:var(--label4);font-size:15px;pointer-events:none;}
@@ -77,6 +81,11 @@ body{background:var(--bg);color:var(--label);font-family:-apple-system,BlinkMacS
 
 /* ── 進度 ── */
 .progress-section{max-width:1400px;margin:0 auto;padding-top:14px;padding-bottom:0;padding-left:24px;padding-right:24px;}
+/* fixed bars offset — set by JS via updateTopOffset() */
+#tab-collection{padding-top:var(--top-offset,220px);}
+#tab-timer{padding-top:calc(var(--nav-h,52px) + 8px);}
+#tab-admin{padding-top:calc(var(--nav-h,52px));}
+
 .progress-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;}
 .progress-label{font-size:13px;font-weight:500;color:var(--label3);}
 .progress-nums{font-size:13px;font-weight:600;color:var(--label2);}
@@ -93,7 +102,7 @@ body{background:var(--bg);color:var(--label);font-family:-apple-system,BlinkMacS
 .tab-icon{font-size:22px;line-height:1;}
 
 /* ── 主內容 ── */
-.content{max-width:1400px;margin:0 auto;padding-top:16px;padding-bottom:max(100px, calc(var(--tab-total) + 24px));padding-left:24px;padding-right:24px;}
+.content{max-width:1400px;margin:0 auto;padding-top:0;padding-bottom:max(100px, calc(var(--tab-total) + 24px));padding-left:24px;padding-right:24px;}
 
 /* ── 載入 ── */
 #loading{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:50vh;gap:12px;}
@@ -403,17 +412,16 @@ html.dark{
     </div>
   </div>
 
-  <!-- 進度 -->
-  <div class="progress-section" id="progress-section">
-    <div class="progress-header">
-      <span class="progress-label">收藏進度</span>
-      <span class="progress-nums"><span class="hl" id="p-collected">0</span> / <span id="p-total">0</span></span>
-    </div>
-    <div class="pbar-bg"><div class="pbar-fill" id="pbar" style="width:0%"></div></div>
-  </div>
-
   <!-- ── Tab: 圖鑑 ── -->
   <div id="tab-collection" class="tab-pane active">
+    <!-- 進度 -->
+    <div class="progress-section" id="progress-section">
+      <div class="progress-header">
+        <span class="progress-label">收藏進度</span>
+        <span class="progress-nums"><span class="hl" id="p-collected">0</span> / <span id="p-total">0</span></span>
+      </div>
+      <div class="pbar-bg"><div class="pbar-fill" id="pbar" style="width:0%"></div></div>
+    </div>
     <div class="content">
 
       <!-- 待辦清單 -->
@@ -806,9 +814,8 @@ function _enterApp(username) {
   document.getElementById('tabbtn-collection').style.display = isAdmin ? 'none' : '';
   document.getElementById('tabbtn-timer').style.display      = isAdmin ? 'none' : '';
   document.getElementById('tabbtn-admin').style.display      = isAdmin ? '' : 'none';
-  document.getElementById('filters-wrap').style.display      = isAdmin ? 'none' : '';
-  document.getElementById('progress-section').style.display  = isAdmin ? 'none' : '';
-  document.getElementById('save-btn').style.display          = isAdmin ? 'none' : 'flex';
+  document.getElementById('filters-wrap').style.display = isAdmin ? 'none' : '';
+  document.getElementById('save-btn').style.display     = isAdmin ? 'none' : 'flex';
 
   if (isAdmin) {
     switchTab('admin');
@@ -899,12 +906,22 @@ function switchTab(tab) {
   if (btn)  btn.classList.add('active');
   const isAdmin = !!(ACCOUNTS.find(a=>a.username===currentUser)?.isAdmin);
   const isColl = tab==='collection';
-  // 只有一般用戶才顯示篩選/進度/儲存
-  document.getElementById('filters-wrap').style.display      = (!isAdmin && isColl) ? '' : 'none';
-  document.getElementById('progress-section').style.display  = (!isAdmin && isColl) ? '' : 'none';
-  document.getElementById('save-btn').style.display          = (!isAdmin && isColl) ? 'flex' : 'none';
+  // 只有一般用戶在圖鑑頁才顯示篩選/儲存（progress-section 已在 tab 內，自動顯示）
+  document.getElementById('filters-wrap').style.display = (!isAdmin && isColl) ? '' : 'none';
+  document.getElementById('save-btn').style.display     = (!isAdmin && isColl) ? 'flex' : 'none';
   if (tab !== 'collection') document.getElementById('scroll-top').classList.remove('visible');
-  if (tab==='timer') renderTimers();
+  if (tab==='timer') { renderTimers(); window.scrollTo({top:0,behavior:'instant'}); }
+  updateTopOffset();
+}
+
+function updateTopOffset() {
+  const navbar = document.querySelector('.navbar');
+  const filters = document.getElementById('filters-wrap');
+  const navH = navbar ? navbar.offsetHeight : 52;
+  const filtersH = (filters && filters.style.display !== 'none') ? filters.offsetHeight : 0;
+  const offset = navH + filtersH;
+  document.documentElement.style.setProperty('--top-offset', offset + 'px');
+  document.documentElement.style.setProperty('--nav-h', navH + 'px');
 }
 
 // ══════════════════════════════════════════
@@ -942,6 +959,8 @@ async function initApp() {
     startTimerLoop();
     checkAnnouncements();
     initAnnColorBtns();
+    updateTopOffset();
+    window.addEventListener('resize', updateTopOffset);
   } catch(err) {
     console.error(err);
     loadEl.innerHTML=`<div style="text-align:center;max-width:300px;">
